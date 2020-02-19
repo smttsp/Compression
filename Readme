@@ -1,0 +1,47 @@
+This program has 3 functionalities.
+1. Compression
+2. Decompression
+3. Comparing MD5s two files.
+
+The first mode can be called by (filename), (filename, "0"), (filename, "compress")
+The second mode can be called (filename, "any") where "any" is any input except "0" and "compress".
+The third mode needs 3 arguments (file1, file2, "", ...). The third variable can be anything. You can have more arguments, but they will be ignored.
+
+1. Compression mode:
+This mode is two iterations: in the first iteration, information about the file is gathered. This information includes file_size, character frequencies, number of unique characters, and how much storage each compression type will take.
+
+For time reasons, I only implemented two RLE versions: string, binary. I did not have enough time to implement other modes that I had in mind (I will explain those).
+
+-String Compression: This type has a limitation that at most 245 different ASCII chars can be used in a file. I first map each chars to a value between 0-255 except those with numeric values (i.e., '0', '1', ..., '9').
+    e.g.: aaabcc11 --> 3 (0x01), (0x02), 2 (0x03), 2 (0x04).
+In the compression file, we keep mapping values as well as the compressed versions of the string.
+
+For example, the above string (8 bytes) will use 8 Bytes (mapping) + 7 Bytes = 15 Bytes - also, 4 Byte file header.
+
+-Binary Compression: This is to overcome the limitation of String Compression. If more than 245 chars are used in an input file, this method can be used. No mapping is required in this mode.
+    e.g., aaa...aaccaaabbb...bb (let's say at the beginning, there are 1000 'a's, and 2000 'b's at the end). It can be stored as 0a2c2a0b{1000, 2000}. The curly brackets are the vector that contains the long continuous chars. Since we a byte can be at most 255, we need such a data structure.
+    Even bytes indicate how many of them exist in the file, and odd bytes are the chars. 0 refers to the corresponding zero in the vector.
+
+-Sparse Compression: If the number of unique chars is low, we can use this method. For example, aabbaabbaabb. This can be represented as 2a2b2a2b2a2b2a2b with string mode. However, since there are only two chars here, we can represent both 'a' and 'b' with 1bit. This way, we can save a lot of space compared to string compression. (NOT IMPLEMENTED)
+
+-Bitset compression: This is regular RLE where each char is converted to its bitwise version. We will find the longest continuous bit. Then ceil(log2(longest)) will give us the number of bits each count can be represented. For example, for '10000011' (131) can is equal to 1,5,2. Then, we know that each char can be presented with 3 bits because 5 (longest continuous 0s), can at least be presented with 3 bits (0b101). However, this idea is bad because data size can easily grow bigger and bigger. (NOT IMPLEMENTED)
+
+Another clarification: count continuous bits. ceil(log2(longest_cont_bit)) will be the size of each bit. Then we will keep the first bit. So (15,1)(10,0)(5,1) can be represented as
+// 1(FIRST BIT), 15, 10, 5 which indicates first 15 bits of 1, then 10 bits 0, then 5 bits 1
+// THE PROBLEM IS UNLESS I ITERATE MULTIPLE TIMES, THIS WILL PROBABLY INCREASE THE SIZE. The solution is "Zigzag bitset compression".
+
+
+-Zigzag bitset compression: This is another compression mode similar to bitset with a difference. Here, we will map the most used char with 0b00000000, and second most used will be 0b11111111. The next ones will be 0b01111111, 0b10000000 etc. So, we will increase the continuous bits. The char with least frequency will be converted to 0b10101010. So, this will make the longest continuous bits longer and longer. (NOT IMPLEMENTED)
+
+Thanks to my implementation, these improved algorithms can easily be appended to the technique.
+
+Note that, when we compress, we add a file header that gives us the type of compression, etc. Also, protection against wrong input types.
+The headers are ZED1, ZED2, ZED3, ... ZEDx where x is the number of compression modes.
+
+2. Decompression mode: In this mode, we first look at the file header that we inserted at compression mode.
+If that is correct, we go to choose the correct decompression method.
+Then we decompress into a file that we choose.
+
+3. Comparing MD5s two files: In this mode, we extract the MD5s the strings of each file. If they are equal, we return true. Otherwise, we return false.
+This mode is useful to see if those methods work fine.
+Note that I got MD5 code from an online source, which adds padding. So, the MD5 is not consistent with the regular MD5 online (or due to another reason.). However, the code seems to be consistent.
